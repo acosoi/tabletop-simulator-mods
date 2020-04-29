@@ -1,0 +1,223 @@
+--[[ World elements --]]
+deckOfCardsGUID = "d0bbde"
+scriptHolderGUID = "e62013"
+
+--[[ Game state --]]
+cardsOnTable = 0
+cardRef0 = nil
+cardRef1 = nil
+cardRef2 = nil
+cardRef3 = nil
+cardRef4 = nil
+resetButtonIndex = nil
+playCardsButtonIndex = nil
+dealCardsToPlayersButtonIndex = nil
+
+--[[ The onLoad event is called after the game save finishes loading. --]]
+function onLoad()
+    --[[ Setup stage buttons, in reference to the script object --]]
+    scriptHolder = getObjectFromGUID(scriptHolderGUID)
+    resetButtonIndex = 0
+    scriptHolder.createButton( {
+        click_function = 'resetDeck',
+        function_owner = Global,
+        label = 'Reset Cards',
+        position = {-26.5, -1.5, 4.5},
+        width = 2000,
+        height = 1200,
+        font_size = 300,
+        tooltip = "Reset the card deck and shuffle it"
+    } )
+
+    playCardsButtonIndex = 1
+    scriptHolder.createButton( {
+        click_function = 'playCardsToTable',
+        function_owner = Global,
+        label = 'Play Cards',
+        position = {7.5, -1.5, 4.5},
+        width = 2000,
+        height = 1200,
+        font_size = 300,
+        tooltip = "Play cards from the deck on the table"
+    } )
+
+    dealCardsToPlayersButtonIndex = 2
+    scriptHolder.createButton( {
+        click_function = 'dealCardsToPlayers',
+        function_owner = Global,
+        label = 'Deal Cards',
+        position = {-21.5, -1.5, 4.5},
+        width = 2000,
+        height = 1200,
+        font_size = 300,
+        tooltip = "Deal two cards to all seated players"
+    } )
+
+    print('Poker Organized + Quality Of Life Improvements - loaded successfully!')
+end
+
+--[[ The onUpdate event is called once per frame. --]]
+function onUpdate()
+    --[[ print('onUpdate loop!') --]]
+end
+
+--[[ Called when a player presses the Fold button--]]
+function handlePlayerFold(player, value, id)
+	print(player.steam_name .. " folds!")
+
+	--[[ Process each card in the user's hand --]]
+	local objectsInHand = player.getHandObjects()
+	for k, v in pairs(objectsInHand) do
+		--[[ Ensure the card is face-down--]]
+		if v.is_face_down == false then
+			v.flip()
+		end
+
+        --[[ Drop the card and don't allow them to be picked back up--]]
+        v.use_hands = false
+
+        --[[ Move the card forward --]]
+        local hand = player.getHandTransform()
+        local offset = 11
+        v.setPositionSmooth( {
+            hand.position.x + hand.forward.x * offset + hand.right.x * k,
+            hand.position.y + hand.forward.y * offset + hand.right.y * k,
+            hand.position.z + hand.forward.z * offset + hand.right.z * k
+        } )
+	end
+end
+
+--[[ Called when a user clicks on the Reset button --]]
+function resetDeck(obj, playerColor, altClick)
+    player = Player[playerColor]
+    print(player.steam_name .. " reset cards and shuffled the deck")
+
+    --[[ Reset the deck of cards and shuffle it --]]
+    deckOfCards = getObjectFromGUID(deckOfCardsGUID)
+    deckOfCards.reset()
+    deckOfCards.shuffle()
+
+    --[[ Disable input for a while --]]
+    disableInputForDuration(obj)
+
+    --[[ Reset card count --]]
+    cardsOnTable = 0
+    cardRef0 = nil
+    cardRef1 = nil
+    cardRef2 = nil
+    cardRef3 = nil
+    cardRef4 = nil
+end
+
+--[[ Called when a user clicks on the Play Cards button --]]
+function playCardsToTable(obj, playerColor, altClick)
+    player = Player[playerColor]
+    print(player.steam_name .. " plays cards to the table")
+
+    --[[ Deal cards depending on the game state --]]
+    deckOfCards = getObjectFromGUID(deckOfCardsGUID)
+    if cardsOnTable == 0 then
+        card = deckOfCards.takeObject()
+        card.setPositionSmooth({deckOfCards.getPosition().x + 2, deckOfCards.getPosition().y, deckOfCards.getPosition().z + 8.3})
+
+        cardRef0 = deckOfCards.takeObject()
+        cardRef0.setPositionSmooth({deckOfCards.getPosition().x + 5.5, deckOfCards.getPosition().y, deckOfCards.getPosition().z + 8.3})
+
+        cardRef1 = deckOfCards.takeObject()
+        cardRef1.setPositionSmooth({deckOfCards.getPosition().x + 8.3, deckOfCards.getPosition().y, deckOfCards.getPosition().z + 8.3})
+
+        cardRef2 = deckOfCards.takeObject()
+        cardRef2.setPositionSmooth({deckOfCards.getPosition().x + 11, deckOfCards.getPosition().y, deckOfCards.getPosition().z + 8.3})
+
+        cardsOnTable = 3
+
+    elseif cardsOnTable == 3 then
+        card = deckOfCards.takeObject()
+        card.setPositionSmooth({deckOfCards.getPosition().x + 1, deckOfCards.getPosition().y, deckOfCards.getPosition().z + 8.3})
+
+        cardRef3 = deckOfCards.takeObject()
+        cardRef3.setPositionSmooth({deckOfCards.getPosition().x + 13.9, deckOfCards.getPosition().y, deckOfCards.getPosition().z + 8.3})
+
+        cardsOnTable = 4
+
+    elseif cardsOnTable == 4 then
+        card = deckOfCards.takeObject()
+        card.setPositionSmooth({deckOfCards.getPosition().x, deckOfCards.getPosition().y, deckOfCards.getPosition().z + 8.3})
+
+        cardRef4 = deckOfCards.takeObject()
+        cardRef4.setPositionSmooth({deckOfCards.getPosition().x + 16.6, deckOfCards.getPosition().y, deckOfCards.getPosition().z + 8.3})
+
+        cardsOnTable = 5
+    end
+
+    --[[ After some time, flip unflipped cards --]]
+    Wait.time(function() flipCardsOnTable() end, 1)
+
+    --[[ Disable input for a while --]]
+    disableInputForDuration(obj)
+
+end
+
+--[[ Deals 2 cards to all seated players --]]
+function dealCardsToPlayers(obj, playerColor, altClick)
+    local player = Player[playerColor]
+    print(player.steam_name .. " deals two cards to all players")
+
+    local deckOfCards = getObjectFromGUID(deckOfCardsGUID)
+    deckOfCards.deal(1)
+    deckOfCards.deal(1)
+
+    --[[ Disable input for a while --]]
+    disableInputForDuration(obj)
+end
+
+--[[ Disable input for the Play Cards, Reset Cards and Deal Cards buttons --]]
+function disableInputForDuration(obj)
+    local button = obj.editButton({index = playCardsButtonIndex, click_function = "emptyFunction"});
+    Wait.time(function() getObjectFromGUID(scriptHolderGUID).editButton({index = playCardsButtonIndex, click_function = "playCardsToTable"}) end, 1)
+
+    button = obj.editButton({index = resetButtonIndex, click_function = "emptyFunction"});
+    Wait.time(function() getObjectFromGUID(scriptHolderGUID).editButton({index = resetButtonIndex, click_function = "resetDeck"}) end, 1)
+
+    button = obj.editButton({index = dealCardsToPlayersButtonIndex, click_function = "emptyFunction"});
+    Wait.time(function() getObjectFromGUID(scriptHolderGUID).editButton({index = dealCardsToPlayersButtonIndex, click_function = "dealCardsToPlayers"}) end, 1)
+end
+
+--[[ Click function for disabled buttons --]]
+function emptyFunction()
+end
+
+--[[ Flips unflipped cards on the table --]]
+function flipCardsOnTable()
+
+    if cardRef0 != nil and cardRef0.is_face_down == true then
+        cardRef0.flip()
+        Wait.time(function() flipCardsOnTable() end, 0.3)
+        return
+    end
+
+    if cardRef1 != nil and cardRef1.is_face_down == true then
+        cardRef1.flip()
+        Wait.time(function() flipCardsOnTable() end, 0.3)
+        return
+    end
+
+    if cardRef2 != nil and cardRef2.is_face_down == true then
+        cardRef2.flip()
+        Wait.time(function() flipCardsOnTable() end, 0.3)
+        return
+    end
+
+    if cardRef3 != nil and cardRef3.is_face_down == true then
+        cardRef3.flip()
+        Wait.time(function() flipCardsOnTable() end, 0.3)
+        return
+    end
+
+    if cardRef4 != nil and cardRef4.is_face_down == true then
+        cardRef4.flip()
+        Wait.time(function() flipCardsOnTable() end, 0.3)
+        return
+    end
+
+end

@@ -1,0 +1,6 @@
+<!-- Xml UI. See documentation: https://api.tabletopsimulator.com/ui/introUI/ -->
+<HorizontalLayout width="300" height="80" cellSpacing="5" rectAlignment="LowerRight" padding="10 80 14 8">
+	<Button onClick="Global/handlePlayerFold">
+		Fold
+	</Button>
+</HorizontalLayout>
